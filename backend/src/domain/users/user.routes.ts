@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import userService from './user.service';
-import { createUserSchema, updateUserSchema, CreateUserInput, UpdateUserInput } from './user.schema';
+import { updateUserSchema, UpdateUserInput } from './user.schema';
 import { validate } from '../../middlewares/validate';
 import { AuthRequest } from '../../middlewares/auth';
 import { requireRole } from '../../middlewares/role';
@@ -91,46 +91,6 @@ router.get('/:id', requireRole('manager'), (req: Request, res: Response) => {
   res.json(user);
 });
 
-/**
- * @swagger
- * /api/users:
- *   post:
- *     summary: Create a user
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [name, email, password, role]
- *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *                 minLength: 6
- *               role:
- *                 type: string
- *                 enum: [manager, client]
- *     responses:
- *       201:
- *         description: User created
- *       400:
- *         description: Validation error
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden (manager role required)
- */
-router.post('/', requireRole('manager'), validate(createUserSchema), async (req: Request, res: Response) => {
-  const user = await userService.create(req.body as CreateUserInput);
-  res.status(201).json(user);
-});
 
 /**
  * @swagger

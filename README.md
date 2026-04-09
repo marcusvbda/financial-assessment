@@ -24,11 +24,52 @@ Built with React (Next.js 16.2.3), Tailwind CSS, ShadCN UI, and React Query.
 
 API built with Express.js, using JSON file-based persistence (as required), with a custom service layer for data management and API documentation generated via Swagger.
 
+### Business Rules
+
+#### Authentication
+
+| Endpoint | Access | Description |
+| --- | --- | --- |
+| `POST /api/auth/register` | Public | Creates a new user with role `client`. Returns `409` if the email is already taken. Requires `name`, `email`, `password`, and `confirm_password` (passwords must match; minimum 6 characters). |
+| `POST /api/auth/login` | Public | Validates credentials and returns a signed JWT (12-hour expiry). Returns `401` on invalid credentials. |
+| `POST /api/auth/revoke` | Authenticated | Invalidates the current token via its `jti` claim (stateful revocation). Subsequent requests with the same token are rejected with `401`. |
+
+JWT payload structure: `{ sub: userId, role, jti }`.
+
+#### Users
+
+Two roles exist: `manager` and `client`.
+
+- Passwords are hashed with bcrypt (10 salt rounds) and never returned in any response.
+- Self-registration always assigns the `client` role. Only managers can create users with an explicit role.
+- The `GET /api/users/me` endpoint is available to any authenticated user. All other user management endpoints (`list`, `get by id`, `create`, `update`, `delete`) require the `manager` role.
+- On update, at least one field must be provided; omitting all fields returns `400`.
+
+#### Transactions
+
+**Status lifecycle:** `pending` → `posted` → `reversed`
+
+| Rule | Detail |
+| --- | --- |
+| Card data is never persisted | `card_number`, `cvv`, and `due_date` are validated and discarded. Only a tokenized `card_id` (`tok_<uuid>`) and `last_digits` are stored. |
+| New transactions start as `pending` | After ~8 seconds the status automatically transitions to `posted`, emulating a payment gateway postback. A WebSocket event `transaction-update-<id>` notifies connected clients. |
+| Only `posted` transactions can be reversed | Attempting to reverse a `pending` or already `reversed` transaction returns `400`. |
+| Reversal requires the `manager` role | `POST /api/transactions/:id/reverse` returns `403` for `client` users. |
+| Clients see only their own transactions | `GET /api/transactions` scopes results to the authenticated user. Managers see all transactions and may filter by `?user_id=`. |
+
+**Card validation rules (applied at request time, not stored):**
+
+- `card_number`: exactly 16 digits, must pass the Luhn checksum.
+- `cvv`: exactly 3 digits.
+- `due_date`: `MM/YYYY` format, must not be expired.
+- `amount`: positive number.
+- `holder`: non-empty string.
+
 ### Features
+
 - Retrieve Transactions: Fetch all transactions for a single user/account
 - Create Transaction: Create a new transaction (simulating a purchase)
 - Reverse Transaction: Update an existing transaction's status to "Reversed"
-- Business Rule: Only transactions with a "Posted" status can be reversed
 
 ### Code Quality
 - Clean, well-structured, and readable code

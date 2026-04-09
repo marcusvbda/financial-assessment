@@ -48,7 +48,6 @@ describe('Auth / Role guards', () => {
   const managerRoutes: Array<[string, string, object?]> = [
     ['GET', '/api/users'],
     ['GET', '/api/users/1'],
-    ['POST', '/api/users'],
     ['PUT', '/api/users/1'],
     ['DELETE', '/api/users/1'],
   ];
@@ -161,54 +160,6 @@ describe('GET /api/users/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body).not.toHaveProperty('password');
     expect(res.body.id).toBe(1);
-  });
-});
-
-// ─── POST /api/users ─────────────────────────────────────────────────────────
-
-describe('POST /api/users', () => {
-  it('returns 400 for missing fields', async () => {
-    const res = await request(app)
-      .post('/api/users')
-      .set('Authorization', makeToken())
-      .send({ name: 'Only Name' });
-    expect(res.status).toBe(400);
-    expect(res.body).toHaveProperty('errors');
-  });
-
-  it('returns 400 for invalid email', async () => {
-    const res = await request(app)
-      .post('/api/users')
-      .set('Authorization', makeToken())
-      .send({ name: 'Test', email: 'invalid', password: '123456', role: 'client' });
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 400 for password shorter than 6 chars', async () => {
-    const res = await request(app)
-      .post('/api/users')
-      .set('Authorization', makeToken())
-      .send({ name: 'Test', email: 'test@test.com', password: '123', role: 'client' });
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 400 for invalid role', async () => {
-    const res = await request(app)
-      .post('/api/users')
-      .set('Authorization', makeToken())
-      .send({ name: 'Test', email: 'test@test.com', password: '123456', role: 'admin' });
-    expect(res.status).toBe(400);
-  });
-
-  it('creates user and returns 201 without password', async () => {
-    mockDb.insert.mockReturnValue({ ...mockUser, id: 2 });
-    const res = await request(app)
-      .post('/api/users')
-      .set('Authorization', makeToken())
-      .send({ name: 'New', email: 'new@example.com', password: 'password123', role: 'client' });
-    expect(res.status).toBe(201);
-    expect(res.body).not.toHaveProperty('password');
-    expect(res.body.id).toBe(2);
   });
 });
 
