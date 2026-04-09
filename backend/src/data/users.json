@@ -1,0 +1,16 @@
+[
+    {
+        "id": 1,
+        "name": "Manager User",
+        "email": "manager@neofinancial.com",
+        "password": "$2b$10$t4uhGlSe2gxApd9ishgwtODbE8gv/mmG7xen4w25WU5fuUhH0Hldq",
+        "role": "manager"
+    },
+    {
+        "id": 2,
+        "name": "Client User",
+        "email": "client@neofinancial.com",
+        "password": "$2b$10$0Wg04gFbvB8HydcxZzMapuOFhdkd2HIYBXlDbDO0CyYryjtQyETZ2",
+        "role": "client"
+    }
+]
