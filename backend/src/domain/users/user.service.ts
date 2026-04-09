@@ -18,13 +18,13 @@ const userService = {
     return user ? sanitize(user) : null;
   },
 
-  async create(data: Omit<User, 'id'>): Promise<SafeUser> {
+  async create(data: Omit<User, 'id' | 'created_at' | 'updated_at'>): Promise<SafeUser> {
     const hashed = await bcrypt.hash(data.password, SALT_ROUNDS);
     const user = userModel.create({ ...data, password: hashed });
     return sanitize(user);
   },
 
-  async update(id: number, data: Partial<Omit<User, 'id'>>): Promise<SafeUser | null> {
+  async update(id: number, data: Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>): Promise<SafeUser | null> {
     const updates = { ...data };
     if (updates.password) {
       updates.password = await bcrypt.hash(updates.password, SALT_ROUNDS);

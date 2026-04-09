@@ -23,7 +23,7 @@ type MockDb = {
 };
 const mockDb = db as unknown as MockDb;
 
-const JWT_SECRET = process.env.JWT_SECRET ?? 'changeme';
+const JWT_SECRET = process.env.JWT_SECRET!;
 
 function makeToken(role: string = 'manager') {
   return `Bearer ${jwt.sign({ sub: 1, role, jti: `jti-${Date.now()}` }, JWT_SECRET, { expiresIn: '1h' })}`;

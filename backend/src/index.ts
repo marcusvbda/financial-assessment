@@ -1,9 +1,14 @@
 import 'dotenv/config';
+import http from 'http';
 import app from './app';
+import { initSocket } from './socket';
 
 const PORT = process.env.PORT ?? 3001;
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Swagger docs at http://localhost:${PORT}/api-docs`);
 });

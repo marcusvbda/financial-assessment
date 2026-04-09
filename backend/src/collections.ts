@@ -4,7 +4,7 @@ import path from 'path';
 type Entity = { id: number };
 type FilterCallback<T> = (item: T) => boolean;
 
-const DATA_DIR = path.join(__dirname, '/data');
+const DATA_DIR = path.join(__dirname, '../src/data');
 
 function filePath(index: string): string {
   return path.join(DATA_DIR, `${index}.json`);
@@ -46,7 +46,7 @@ const dataPersistence = {
     const data = readCollection<T>(index);
     const i = data.findIndex((item) => item.id === id);
     if (i === -1) return null;
-    data[i] = { ...data[i], ...updates };
+    data[i] = { ...data[i], ...updates, updated_at: new Date().toISOString() } as T;
     writeCollection(index, data);
     return data[i];
   },
@@ -54,7 +54,8 @@ const dataPersistence = {
   insert<T extends Entity>(index: string, item: Omit<T, 'id'>): T {
     const data = readCollection<T>(index);
     const nextId = data.reduce((max, entry) => Math.max(max, entry.id), 0) + 1;
-    const newItem = { ...item, id: nextId } as T;
+    const now = new Date().toISOString();
+    const newItem = { ...item, id: nextId, created_at: now, updated_at: now } as unknown as T;
     data.push(newItem);
     writeCollection(index, data);
     return newItem;

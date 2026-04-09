@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import userModel from '../users/user.model';
 import db from '../../collections';
 
-const JWT_SECRET = process.env.JWT_SECRET ?? 'changeme';
+const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_EXPIRES_IN = '12h';
 const REVOKED_INDEX = 'revoked-tokens';
 
