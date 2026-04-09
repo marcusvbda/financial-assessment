@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import authService from './auth.service';
-import { loginSchema, LoginInput } from './auth.schema';
+import { loginSchema, LoginInput, registerSchema, RegisterInput } from './auth.schema';
 import { validate } from '../../middlewares/validate';
 import { isAuthenticated, AuthRequest } from '../../middlewares/auth';
+import userModel from '../users/user.model';
+import userService from '../users/user.service';
 
 const router = Router();
 
@@ -42,6 +44,47 @@ router.post('/login', validate(loginSchema), async (_req: Request, res: Response
     return;
   }
   res.json({ token });
+});
+
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Register a new client user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, email, password, confirm_password]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               confirm_password:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: User created
+ *       409:
+ *         description: Email already in use
+ */
+router.post('/register', validate(registerSchema), async (req: Request, res: Response) => {
+  const { name, email, password } = req.body as RegisterInput;
+
+  const existing = userModel.findAll().find((u) => u.email === email);
+  if (existing) {
+    res.status(409).json({ error: 'email already in use' });
+    return;
+  }
+
+  const user = await userService.create({ name, email, password, role: 'client' });
+  res.status(201).json(user);
 });
 
 /**
