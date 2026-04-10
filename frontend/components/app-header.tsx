@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { AuthDialog } from '@/components/auth-dialog';
 import type { SessionUser } from '@/lib/auth/server';
 import { LogoutButton } from '@/components/logout-button';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ export function AppHeader({ user }: AppHeaderProps) {
     <header className="border-b bg-background">
       <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" className="font-semibold tracking-tight">
-          Financial Assessment
+          Neo Financial Assessment
         </Link>
 
         <div className="flex items-center gap-3">
@@ -29,9 +30,10 @@ export function AppHeader({ user }: AppHeaderProps) {
               <LogoutButton />
             </>
           ) : (
-            <Button asChild>
-              <Link href="/login">Log in</Link>
-            </Button>
+            <AuthDialog
+              openLabel="Log in"
+              description="Sign in or create an account to continue with the checkout."
+            />
           )}
         </div>
       </div>

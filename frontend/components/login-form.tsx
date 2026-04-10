@@ -20,6 +20,12 @@ import { cn } from '@/lib/utils';
 
 type AuthMode = 'login' | 'register';
 
+interface LoginFormProps {
+  defaultMode?: AuthMode;
+  redirectTo?: string | null;
+  onSuccess?: () => void;
+}
+
 const loginSchema = z.object({
   email: z.string().email('Enter a valid email address.'),
   password: z.string().min(1, 'Password is required.'),
@@ -39,9 +45,13 @@ const registerSchema = z
 
 type FieldErrors = Partial<Record<'name' | 'email' | 'password' | 'confirmPassword', string>>;
 
-export function LoginForm() {
+export function LoginForm({
+  defaultMode = 'login',
+  redirectTo = '/app',
+  onSuccess,
+}: LoginFormProps) {
   const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>('login');
+  const [mode, setMode] = useState<AuthMode>(defaultMode);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const authMutation = useMutation({
@@ -124,7 +134,12 @@ export function LoginForm() {
       return null;
     },
     onSuccess: () => {
-      router.push('/app');
+      onSuccess?.();
+
+      if (redirectTo) {
+        router.push(redirectTo);
+      }
+
       router.refresh();
     },
   });
@@ -196,22 +211,18 @@ export function LoginForm() {
       </CardHeader>
       <CardContent>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-          {mode === 'register' ? (
+          {mode === 'register' && (
             <div className="flex flex-col gap-2">
               <Label htmlFor="name">Full name</Label>
               <Input id="name" name="name" placeholder="Jane Doe" required />
-              {fieldErrors.name ? (
-                <p className="text-sm text-destructive">{fieldErrors.name}</p>
-              ) : null}
+              {fieldErrors.name && <p className="text-sm text-destructive">{fieldErrors.name}</p>}
             </div>
-          ) : null}
+          )}
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="email">Email</Label>
             <Input id="email" name="email" type="email" placeholder="jane@example.com" required />
-            {fieldErrors.email ? (
-              <p className="text-sm text-destructive">{fieldErrors.email}</p>
-            ) : null}
+            {fieldErrors.email && <p className="text-sm text-destructive">{fieldErrors.email}</p>}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -223,12 +234,12 @@ export function LoginForm() {
               placeholder="Enter your password"
               required
             />
-            {fieldErrors.password ? (
+            {fieldErrors.password && (
               <p className="text-sm text-destructive">{fieldErrors.password}</p>
-            ) : null}
+            )}
           </div>
 
-          {mode === 'register' ? (
+          {mode === 'register' && (
             <div className="flex flex-col gap-2">
               <Label htmlFor="confirmPassword">Confirm password</Label>
               <Input
@@ -238,17 +249,17 @@ export function LoginForm() {
                 placeholder="Confirm your password"
                 required
               />
-              {fieldErrors.confirmPassword ? (
+              {fieldErrors.confirmPassword && (
                 <p className="text-sm text-destructive">{fieldErrors.confirmPassword}</p>
-              ) : null}
+              )}
             </div>
-          ) : null}
+          )}
 
-          {authMutation.error && !(authMutation.error instanceof z.ZodError) ? (
+          {authMutation.error && !(authMutation.error instanceof z.ZodError) && (
             <p className="text-sm text-destructive" role="alert">
               {authMutation.error.message}
             </p>
-          ) : null}
+          )}
 
           <Button type="submit" className="w-full" disabled={authMutation.isPending}>
             {authMutation.isPending

@@ -144,7 +144,7 @@ function ReverseButton({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {isThisOne && error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {isThisOne && error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

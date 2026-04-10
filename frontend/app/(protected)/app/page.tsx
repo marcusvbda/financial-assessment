@@ -7,7 +7,7 @@ export default async function AppPage() {
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect('/login');
+    redirect('/');
   }
 
   return <TransactionListView user={user} />;
