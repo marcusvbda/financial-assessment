@@ -1,32 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { io } from 'socket.io-client';
 
 type TransactionStatus = 'posted' | 'pending' | 'reversed';
 
-interface Transaction {
-  id: number;
-  status: TransactionStatus;
-}
-
 interface TransactionStatusTrackerProps {
+  initialStatus: TransactionStatus;
   socketUrl: string;
-  transactionId?: number;
-}
-
-async function fetchTransaction(transactionId: number): Promise<Transaction | null> {
-  const response = await fetch('/api/protected/transactions', {
-    cache: 'no-store',
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to load transaction status.');
-  }
-
-  const transactions = (await response.json()) as Transaction[];
-  return transactions.find((transaction) => transaction.id === transactionId) ?? null;
+  transactionId: number;
 }
 
 function Spinner() {
@@ -36,21 +18,14 @@ function Spinner() {
 }
 
 export function TransactionStatusTracker({
+  initialStatus,
   socketUrl,
   transactionId,
 }: TransactionStatusTrackerProps) {
-  const transactionQuery = useQuery({
-    queryKey: ['transaction', transactionId],
-    queryFn: () => fetchTransaction(transactionId!),
-    enabled: typeof transactionId === 'number',
-    refetchOnWindowFocus: false,
-  });
-
-  const [liveStatus, setLiveStatus] = useState<TransactionStatus | null>(null);
-  const status = liveStatus ?? transactionQuery.data?.status ?? null;
+  const [status, setStatus] = useState<TransactionStatus>(initialStatus);
 
   useEffect(() => {
-    if (!transactionId || status !== 'pending') {
+    if (!socketUrl || status !== 'pending') {
       return undefined;
     }
 
@@ -60,7 +35,7 @@ export function TransactionStatusTracker({
 
     function handleUpdate(payload: { status?: TransactionStatus }) {
       if (payload.status) {
-        setLiveStatus(payload.status);
+        setStatus(payload.status);
       }
     }
 
@@ -71,45 +46,6 @@ export function TransactionStatusTracker({
       socket.disconnect();
     };
   }, [socketUrl, status, transactionId]);
-
-  if (!transactionId) {
-    return (
-      <div className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
-        Transaction ID is missing from the URL.
-      </div>
-    );
-  }
-
-  if (transactionQuery.isLoading) {
-    return (
-      <div className="mt-8 flex items-center gap-3 rounded-2xl border border-border/60 bg-muted/30 p-5">
-        <Spinner />
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Loading transaction</p>
-          <p className="text-sm text-muted-foreground">Checking the latest payment status.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (transactionQuery.isError) {
-    return (
-      <div className="mt-8 rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
-        {transactionQuery.error.message}
-      </div>
-    );
-  }
-
-  if (!transactionQuery.data) {
-    return (
-      <div className="mt-8 rounded-2xl border border-border/60 bg-muted/30 p-5">
-        <p className="text-sm font-medium text-muted-foreground">Transaction not found</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          We could not find the payment record for transaction #{transactionId}.
-        </p>
-      </div>
-    );
-  }
 
   if (status === 'pending') {
     return (
@@ -141,6 +77,19 @@ export function TransactionStatusTracker({
         </p>
         <p className="mt-1 text-base font-medium">
           The backend postback was received and your transaction is now posted.
+        </p>
+      </div>
+    );
+  }
+
+  if (status === 'reversed') {
+    return (
+      <div className="mt-8 rounded-2xl border border-red-300/60 bg-red-50 p-5 text-red-950">
+        <p className="text-sm font-medium uppercase tracking-[0.18em] text-red-700">
+          Payment reversed
+        </p>
+        <p className="mt-1 text-base font-medium">
+          This transaction was reversed and the payment is no longer active.
         </p>
       </div>
     );

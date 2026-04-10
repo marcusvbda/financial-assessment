@@ -67,8 +67,15 @@ function formatDate(iso: string) {
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
-async function fetchTransactions(userId?: number): Promise<Transaction[]> {
+async function fetchTransactions({
+  status,
+  userId,
+}: {
+  status?: TransactionStatus;
+  userId?: number;
+}): Promise<Transaction[]> {
   const params = new URLSearchParams();
+  if (status) params.set('status', status);
   if (userId) params.set('user_id', String(userId));
   const qs = params.toString();
   const res = await fetch(`/api/protected/transactions${qs ? `?${qs}` : ''}`);
@@ -184,8 +191,12 @@ export function TransactionListView({ user }: Props) {
   // ── Queries ────────────────────────────────────────────────────────────────
 
   const transactionsQuery = useQuery({
-    queryKey: ['transactions', { userId: userIdFilter }],
-    queryFn: () => fetchTransactions(userIdFilter),
+    queryKey: ['transactions', { status: statusFilter, userId: userIdFilter }],
+    queryFn: () =>
+      fetchTransactions({
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        userId: userIdFilter,
+      }),
   });
 
   const usersQuery = useQuery({
@@ -206,13 +217,9 @@ export function TransactionListView({ user }: Props) {
   // ── Derived data ───────────────────────────────────────────────────────────
 
   const allTransactions = transactionsQuery.data ?? [];
-
-  const filtered =
-    statusFilter === 'all' ? allTransactions : allTransactions.filter((t) => t.status === statusFilter);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(allTransactions.length / PAGE_SIZE));
   const safePageClamp = Math.min(page, totalPages);
-  const paginated = filtered.slice((safePageClamp - 1) * PAGE_SIZE, safePageClamp * PAGE_SIZE);
+  const paginated = allTransactions.slice((safePageClamp - 1) * PAGE_SIZE, safePageClamp * PAGE_SIZE);
 
   const usersMap = new Map((usersQuery.data ?? []).map((u) => [u.id, u.name]));
 
@@ -305,7 +312,7 @@ export function TransactionListView({ user }: Props) {
       {/* Count */}
       {!transactionsQuery.isLoading && !transactionsQuery.isError && (
         <p className="mb-3 text-sm text-muted-foreground">
-          {filtered.length} {filtered.length === 1 ? 'transaction' : 'transactions'}
+          {allTransactions.length} {allTransactions.length === 1 ? 'transaction' : 'transactions'}
         </p>
       )}
 

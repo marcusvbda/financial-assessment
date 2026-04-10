@@ -19,6 +19,25 @@ const INDEX = 'transactions';
 const transactionModel = {
   findAll: (): Transaction[] => db.load<Transaction>(INDEX),
 
+  findFiltered: ({
+    status,
+    userId,
+  }: {
+    status?: TransactionStatus;
+    userId?: number;
+  }): Transaction[] =>
+    db.get<Transaction>(INDEX, (transaction) => {
+      if (userId !== undefined && transaction.user_id !== userId) {
+        return false;
+      }
+
+      if (status !== undefined && transaction.status !== status) {
+        return false;
+      }
+
+      return true;
+    }),
+
   findByUserId: (userId: number): Transaction[] =>
     db.get<Transaction>(INDEX, (t) => t.user_id === userId),
 

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 import { AUTH_COOKIE } from '@/lib/auth/constants';
 
@@ -52,4 +53,29 @@ export async function getCurrentUser() {
   const token = cookieStore.get(AUTH_COOKIE)?.value;
 
   return getCurrentUserFromToken(token);
+}
+
+export async function protectedBackendRequest(
+  path: string,
+  init: RequestInit = {}
+): Promise<Response> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(AUTH_COOKIE)?.value;
+
+  if (!token) {
+    redirect('/');
+  }
+
+  const headers = new Headers(init.headers);
+  headers.set('Authorization', `Bearer ${token}`);
+
+  if (!headers.has('Content-Type') && init.body) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  return fetch(`${process.env.BACKEND_URL!}${path}`, {
+    ...init,
+    headers,
+    cache: 'no-store',
+  });
 }

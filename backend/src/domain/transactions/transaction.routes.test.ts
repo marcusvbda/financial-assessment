@@ -111,6 +111,76 @@ describe('GET /api/transactions', () => {
     expect(res.body).toHaveLength(1);
     expect(res.body[0].user_id).toBe(2);
   });
+
+  it('filters transactions by status on the backend', async () => {
+    mockDb.get.mockImplementation((index: string) => {
+      if (index === 'revoked-tokens') return [];
+      return [mockTransactionPending];
+    });
+    const res = await request(app)
+      .get('/api/transactions?status=pending')
+      .set('Authorization', makeToken('manager'));
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].status).toBe('pending');
+  });
+});
+
+// ─── GET /api/transactions/:id ───────────────────────────────────────────────
+
+describe('GET /api/transactions/:id', () => {
+  it('returns 401 without token', async () => {
+    const res = await request(app).get('/api/transactions/1');
+    expect(res.status).toBe(401);
+  });
+
+  it('manager gets a transaction by id', async () => {
+    mockDb.get.mockImplementation((index: string) => {
+      if (index === 'revoked-tokens') return [];
+      return [mockTransaction];
+    });
+    const res = await request(app)
+      .get('/api/transactions/1')
+      .set('Authorization', makeToken('manager'));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: 1, status: 'posted' });
+  });
+
+  it('client gets own transaction by id', async () => {
+    mockDb.get.mockImplementation((index: string) => {
+      if (index === 'revoked-tokens') return [];
+      return [{ ...mockTransaction, user_id: 2 }];
+    });
+    const res = await request(app)
+      .get('/api/transactions/1')
+      .set('Authorization', makeToken('client', 2));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ id: 1, user_id: 2 });
+  });
+
+  it('returns 404 when client requests another user transaction', async () => {
+    mockDb.get.mockImplementation((index: string) => {
+      if (index === 'revoked-tokens') return [];
+      return [mockTransaction];
+    });
+    const res = await request(app)
+      .get('/api/transactions/1')
+      .set('Authorization', makeToken('client', 2));
+    expect(res.status).toBe(404);
+    expect(res.body).toHaveProperty('error', 'Transaction not found');
+  });
+
+  it('returns 404 when transaction does not exist', async () => {
+    mockDb.get.mockImplementation((index: string) => {
+      if (index === 'revoked-tokens') return [];
+      return [];
+    });
+    const res = await request(app)
+      .get('/api/transactions/99')
+      .set('Authorization', makeToken('manager'));
+    expect(res.status).toBe(404);
+    expect(res.body).toHaveProperty('error', 'Transaction not found');
+  });
 });
 
 // ─── POST /api/transactions ───────────────────────────────────────────────────

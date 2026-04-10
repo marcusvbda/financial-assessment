@@ -24,6 +24,12 @@ const router = Router();
  *         schema:
  *           type: integer
  *         description: Filter by user (manager only)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, posted, reversed]
+ *         description: Filter by transaction status
  *     responses:
  *       200:
  *         description: List of transactions
@@ -31,12 +37,47 @@ const router = Router();
  *         description: Unauthorized
  */
 router.get('/', (req: AuthRequest, res: Response) => {
+  const status = req.query.status as 'pending' | 'posted' | 'reversed' | undefined;
+
   if (req.user!.role === 'manager') {
     const userId = req.query.user_id ? parseInt(req.query.user_id as string, 10) : undefined;
-    res.json(transactionService.listAll(userId));
+    res.json(transactionService.listAll({ status, userId }));
   } else {
-    res.json(transactionService.listForUser(req.user!.id));
+    res.json(transactionService.listForUser(req.user!.id, status));
   }
+});
+
+/**
+ * @swagger
+ * /api/transactions/{id}:
+ *   get:
+ *     summary: Get a single transaction
+ *     tags: [Transactions]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Transaction details
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Transaction not found
+ */
+router.get('/:id', (req: AuthRequest, res: Response) => {
+  const result = transactionService.getById(parseInt(req.params.id, 10), req.user!);
+
+  if (result === 'not_found') {
+    res.status(404).json({ error: 'Transaction not found' });
+    return;
+  }
+
+  res.json(result);
 });
 
 /**

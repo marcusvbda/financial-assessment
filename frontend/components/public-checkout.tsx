@@ -12,8 +12,6 @@ import { Label } from '@/components/ui/label';
 import type { SessionUser } from '@/lib/auth/server';
 import LockWall from './lock-wall';
 
-const PRODUCT_PRICE = 249;
-
 const checkoutSchema = z.object({
   holder: z.string().min(1, 'Cardholder name is required.'),
   card_number: z.string().regex(/^\d{16}$/, 'Card number must have 16 digits.'),
@@ -26,6 +24,7 @@ const checkoutSchema = z.object({
 type CheckoutFieldErrors = Partial<Record<'holder' | 'card_number' | 'cvv' | 'due_date', string>>;
 
 interface PublicCheckoutProps {
+  productPrice: number;
   user: SessionUser | null;
 }
 
@@ -59,7 +58,7 @@ function formatDueDate(value: string) {
   return `${digits.slice(0, 2)}/${digits.slice(2)}`;
 }
 
-export function PublicCheckout({ user }: PublicCheckoutProps) {
+export function PublicCheckout({ productPrice, user }: PublicCheckoutProps) {
   const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({});
   const [cardNumberValue, setCardNumberValue] = useState('');
@@ -86,7 +85,7 @@ export function PublicCheckout({ user }: PublicCheckoutProps) {
         },
         body: JSON.stringify({
           ...parsed.data,
-          amount: PRODUCT_PRICE,
+          amount: productPrice,
         }),
       });
 
@@ -181,7 +180,7 @@ export function PublicCheckout({ user }: PublicCheckoutProps) {
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                   <h2 className="text-4xl font-semibold tracking-tight">
-                    {formatCurrency(PRODUCT_PRICE)}
+                    {formatCurrency(productPrice)}
                   </h2>
                 </div>
               </div>
@@ -283,7 +282,7 @@ export function PublicCheckout({ user }: PublicCheckoutProps) {
               >
                 {checkoutMutation.isPending
                   ? 'Processing payment...'
-                  : `Buy for ${formatCurrency(PRODUCT_PRICE)}`}
+                  : `Buy for ${formatCurrency(productPrice)}`}
               </Button>
             </form>
           </CardContent>
