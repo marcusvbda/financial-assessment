@@ -20,7 +20,9 @@ export interface JwtPayload {
 
 const authService = {
   async login(email: string, password: string): Promise<string | null> {
-    const user = userModel.findAll().find((u) => u.email === email);
+    const user = userModel
+      .findAll()
+      .find((u) => String(u.email).toLocaleLowerCase() === String(email).toLocaleLowerCase());
     if (!user) return null;
 
     const valid = await bcrypt.compare(password, user.password);

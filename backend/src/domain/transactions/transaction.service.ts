@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import transactionModel, { Transaction } from './transaction.model';
 import { getIO } from '../../socket';
 
-const POSTBACK_EMULATE_TIMEOUT = 8000;
+const POSTBACK_EMULATE_TIMEOUT = 5000;
 type TransactionStatus = Transaction['status'];
 
 interface CardInput {

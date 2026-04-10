@@ -1,6 +1,6 @@
-# Development Prompts — Hypothetical Credit Card Company Backend
+# Development Prompts — Hypothetical Credit Card Company
 
-Prompts used during development to bootstrap and evolve the backend.
+Prompts used during development to bootstrap and evolve the project.
 They were written to **delegate implementation of well-defined decisions**, not to discover what to build.
 
 Each prompt includes its objective, the exact instruction given to AI, and the resulting outcome.
@@ -227,3 +227,49 @@ Segmented control to switch between `login` and `register` modes. Login: validat
 **Notes**
 
 The `next lint` command does not work with ESLint 8 in Next.js 16 (`eslint-config-next` requires ESLint 9). The lint script was changed to `eslint . --ext .ts,.tsx` using the same `.eslintrc.json` approach as the backend, with `"env": { "browser": true }` in place of `"env": { "node": true }`.
+
+---
+
+## Prompt 6 — Security Audit
+
+**Objective**
+
+Identify security issues, logic gaps, and missing requirements before submission, without performing a narrowly scoped check. The goal was to get an independent second opinion on the full implementation.
+
+**Prompt**
+
+This is an assessment for an important job application. Review the entire backend and frontend code — logic, security, and patterns. Write a review document listing any issues found (logic errors, security vulnerabilities, bad practices). Also evaluate whether all stated requirements were implemented or if anything is missing or incorrect. The requirements are:
+
+- Frontend: transaction list (date, merchant, amount, status), status filter, responsive UI.
+- Backend: retrieve transactions, create transaction, reverse transaction (only Posted can be reversed).
+- Constraints: file-based persistence, README with setup instructions, AI usage documented, PROMPTS.md preferred.
+
+**Result**
+
+* Full review document generated at `docs/CODE_REVIEW.md`
+* All requirements confirmed as implemented
+* 8 issues identified across backend and frontend, ranging from missing rate limiting to WebSocket CORS misconfiguration and case-sensitive email handling
+* Strengths validated: card tokenization, httpOnly cookie strategy, Luhn validation, bcrypt usage, JWT revocation via `jti`
+
+**Notes**
+
+The review surfaced issues I had not considered during implementation (unbounded revoked-token list, proxy route with no endpoint allowlist, `__dirname` path resolution in `collections.ts`). Items classified as Medium or High were addressed; Low and Info items were documented but left as known trade-offs given the assessment scope.
+
+---
+
+## Prompt 7 — Rate Limiting on Public Auth Endpoints
+
+**Objective**
+
+Address the missing rate limiting identified in the security audit. Apply brute-force protection to `POST /login` and `POST /register` without changing the existing middleware pattern.
+
+**Prompt**
+
+Implement rate limiting on the public auth routes of the Express API. Install `express-rate-limit`. Create `src/middlewares/rate-limit.ts` exporting two limiters: `loginLimiter` (10 attempts per IP per 15 minutes) and `registerLimiter` (5 attempts per IP per 1 hour). Both should return `standardHeaders: true`, `legacyHeaders: false`, and a JSON-formatted error message. Apply `loginLimiter` to `POST /login` and `registerLimiter` to `POST /register` in `auth.routes.ts`, before the existing `validate` middleware. Do not apply any limiter to `POST /revoke` — it already requires a valid token.
+
+**Result**
+
+* `express-rate-limit` added as a dependency
+* `src/middlewares/rate-limit.ts` created with `loginLimiter` and `registerLimiter`
+* Both limiters applied in `auth.routes.ts` as route-level middleware
+* `RateLimit-*` response headers exposed for clients to inspect remaining quota

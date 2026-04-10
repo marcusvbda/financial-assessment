@@ -3,6 +3,7 @@ import authService from './auth.service';
 import { loginSchema, LoginInput, registerSchema, RegisterInput } from './auth.schema';
 import { validate } from '../../middlewares/validate';
 import { isAuthenticated, AuthRequest } from '../../middlewares/auth';
+import { loginLimiter, registerLimiter } from '../../middlewares/rate-limit';
 import userModel from '../users/user.model';
 import userService from '../users/user.service';
 
@@ -36,7 +37,7 @@ const router = Router();
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', validate(loginSchema), async (_req: Request, res: Response) => {
+router.post('/login', loginLimiter, validate(loginSchema), async (_req: Request, res: Response) => {
   const { email, password } = _req.body as LoginInput;
   const token = await authService.login(email, password);
   if (!token) {
@@ -74,7 +75,7 @@ router.post('/login', validate(loginSchema), async (_req: Request, res: Response
  *       409:
  *         description: Email already in use
  */
-router.post('/register', validate(registerSchema), async (req: Request, res: Response) => {
+router.post('/register', registerLimiter, validate(registerSchema), async (req: Request, res: Response) => {
   const { name, email, password } = req.body as RegisterInput;
 
   const existing = userModel.findAll().find((u) => u.email === email);
