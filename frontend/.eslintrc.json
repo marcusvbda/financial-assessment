@@ -5,11 +5,11 @@
     "sourceType": "module"
   },
   "plugins": ["@typescript-eslint", "unused-imports"],
-  "extends": [
-    "next/core-web-vitals",
-    "plugin:@typescript-eslint/recommended",
-    "prettier"
-  ],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended", "prettier"],
+  "env": {
+    "browser": true,
+    "es2020": true
+  },
   "rules": {
     "unused-imports/no-unused-imports": "error",
     "unused-imports/no-unused-vars": [

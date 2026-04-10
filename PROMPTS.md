@@ -147,3 +147,83 @@ Watch out: `isAuthenticated` calls `db.get('revoked-tokens', ...)` on every requ
 **Notes**
 
 Special care was taken to correctly mock the persistence layer due to shared usage (`revoked-tokens`). Conditional mocking ensured accurate behavior across different test scenarios.
+
+---
+
+## Prompt 5 — Frontend Bootstrap with Cookie-Based Auth
+
+**Objective**
+
+Bootstrap a Next.js frontend that authenticates against the existing Express backend using a BFF pattern: tokens stay server-side in an httpOnly cookie, and all authenticated backend calls are forwarded through Next.js API routes.
+
+**Prompt**
+
+Bootstrap a Next.js 16 frontend with App Router, TypeScript, Tailwind CSS, and JWT-based authentication against an existing Express backend.
+
+Stack: Next.js 16, React 19, TypeScript, Tailwind CSS, @tanstack/react-query v5, Zod, shadcn/ui (Button, Card, Input, Label). ESLint 8 + Prettier with `eslint-plugin-unused-imports`.
+
+**Auth strategy — cookie-based BFF:**
+Store the backend JWT in an httpOnly cookie (`session-token`, 12h). Never expose it to the browser directly. Next.js API routes act as a BFF: they read the cookie server-side and forward requests to the backend with the `Authorization` header injected.
+
+**File structure:**
+
+```text
+lib/
+  auth/
+    constants.ts     – AUTH_COOKIE = 'session-token', SESSION_MAX_AGE = 60 * 60 * 12
+    server.ts        – backendRequest(), getCurrentUserFromToken(), getCurrentUser()
+  utils.ts           – cn() helper (clsx + tailwind-merge)
+
+proxy.ts             – Next.js middleware: redirect /app/* → /login if no cookie; redirect /login → /app if cookie present
+
+app/
+  layout.tsx         – root layout: calls getCurrentUser(), passes user to AppHeader, wraps in Providers
+  page.tsx           – public landing page
+  globals.css        – Tailwind base styles
+  (auth)/
+    login/page.tsx   – server component: redirects to /app if already logged in; renders LoginForm
+  (protected)/
+    app/page.tsx     – server component: redirects to /login if not logged in; shows user info card
+  api/
+    session/
+      login/route.ts    – POST: receives credentials, calls backend /api/auth/login, sets httpOnly cookie on success
+      logout/route.ts   – POST: calls backend /api/auth/revoke (best-effort, ignore errors), deletes cookie
+      register/route.ts – POST: proxies to backend /api/auth/register, returns status as-is
+    protected/
+      [...proxy]/route.ts – catch-all for GET/POST/PUT/PATCH/DELETE: reads cookie, forwards request to BACKEND_URL/api/<path><query> with Authorization header
+
+components/
+  app-header.tsx     – header: logo on left; if logged in → user name/email + dashboard link + logout button; if not → login button
+  login-form.tsx     – combined login/register card with segmented control, Zod validation, React Query mutations
+  logout-button.tsx  – client component: POST /api/session/logout, then router.push('/') + router.refresh()
+  providers.tsx      – QueryClientProvider initialized with useState to avoid shared state across requests
+  ui/                – shadcn Button, Card, Input, Label
+```
+
+**lib/auth/server.ts details:**
+
+* `backendRequest(path, init)`: fetch to `BACKEND_URL`, sets `Content-Type: application/json` if body present and header absent, always `cache: 'no-store'`
+* `getCurrentUserFromToken(token?)`: calls `/api/users/me` with Bearer token, returns `SessionUser | null`
+* `getCurrentUser()`: reads cookie, calls `getCurrentUserFromToken`. If token exists but `/me` fails, **delete the cookie** before returning null — treats an invalid or expired token as logged-out state
+
+**Proxy route (`[...proxy]`) details:**
+Forward only `accept` and `content-type` headers from the original request. Build the target URL as `BACKEND_URL/api/<path-segments><query-string>`. For non-GET/HEAD methods, read and forward the request body as text.
+
+**LoginForm details:**
+Segmented control to switch between `login` and `register` modes. Login: validates email + password with Zod, POSTs to `/api/session/login`, redirects to `/app` on success. Register: validates name + email + password + confirmPassword with Zod (cross-field refine for password match), POSTs to `/api/session/register`, then auto-logins via `/api/session/login`, redirects to `/app`. Show per-field Zod errors inline and global API errors as an alert. Submit button shows loading state.
+
+**next.config.ts:** `output: 'standalone'`
+
+**Result**
+
+* Full Next.js frontend connected to the Express backend via cookie-based BFF
+* JWT token isolated to httpOnly cookie — never accessible from browser JavaScript
+* Middleware protects `/app/*` and redirects stale sessions to `/login`
+* Invalid or expired tokens automatically cleared on the next server render
+* Combined login/register form with client-side Zod validation and React Query mutations
+* Catch-all proxy route forwards all authenticated API calls to the backend
+* Standalone output mode ready for containerized deployment
+
+**Notes**
+
+The `next lint` command does not work with ESLint 8 in Next.js 16 (`eslint-config-next` requires ESLint 9). The lint script was changed to `eslint . --ext .ts,.tsx` using the same `.eslintrc.json` approach as the backend, with `"env": { "browser": true }` in place of `"env": { "node": true }`.
