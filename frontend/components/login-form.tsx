@@ -1,8 +1,6 @@
 'use client';
 
-import { type FormEvent, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
@@ -16,9 +14,14 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  type AuthFieldErrors,
+  type AuthMode,
+  loginSchema,
+  registerSchema,
+  useAuthMutation,
+} from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
-
-type AuthMode = 'login' | 'register';
 
 interface LoginFormProps {
   defaultMode?: AuthMode;
@@ -26,125 +29,17 @@ interface LoginFormProps {
   onSuccess?: () => void;
 }
 
-const loginSchema = z.object({
-  email: z.string().email('Enter a valid email address.'),
-  password: z.string().min(1, 'Password is required.'),
-});
-
-const registerSchema = z
-  .object({
-    name: z.string().min(1, 'Full name is required.'),
-    email: z.string().email('Enter a valid email address.'),
-    password: z.string().min(6, 'Password must be at least 6 characters.'),
-    confirmPassword: z.string().min(1, 'Please confirm your password.'),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match.',
-    path: ['confirmPassword'],
-  });
-
-type FieldErrors = Partial<Record<'name' | 'email' | 'password' | 'confirmPassword', string>>;
-
 export function LoginForm({
   defaultMode = 'login',
   redirectTo = '/app',
   onSuccess,
 }: LoginFormProps) {
-  const router = useRouter();
   const [mode, setMode] = useState<AuthMode>(defaultMode);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
 
-  const authMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      if (mode === 'login') {
-        const parsed = loginSchema.safeParse({
-          email: formData.get('email'),
-          password: formData.get('password'),
-        });
+  const authMutation = useAuthMutation({ mode, redirectTo, onSuccess });
 
-        if (!parsed.success) {
-          throw parsed.error;
-        }
-
-        const response = await fetch('/api/session/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(parsed.data),
-        });
-
-        const data = (await response.json().catch(() => ({}))) as { error?: string };
-
-        if (!response.ok) {
-          throw new Error(data.error ?? 'Authentication failed');
-        }
-        return null;
-      }
-
-      const parsed = registerSchema.safeParse({
-        name: formData.get('name'),
-        email: formData.get('email'),
-        password: formData.get('password'),
-        confirmPassword: formData.get('confirmPassword'),
-      });
-
-      if (!parsed.success) {
-        throw parsed.error;
-      }
-
-      const registerResponse = await fetch('/api/session/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: parsed.data.name,
-          email: parsed.data.email,
-          password: parsed.data.password,
-          confirm_password: parsed.data.confirmPassword,
-        }),
-      });
-
-      const registerData = (await registerResponse.json().catch(() => ({}))) as {
-        error?: string;
-      };
-
-      if (!registerResponse.ok) {
-        throw new Error(registerData.error ?? 'Authentication failed');
-      }
-
-      const loginResponse = await fetch('/api/session/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: parsed.data.email,
-          password: parsed.data.password,
-        }),
-      });
-
-      const loginData = (await loginResponse.json().catch(() => ({}))) as { error?: string };
-
-      if (!loginResponse.ok) {
-        throw new Error(loginData.error ?? 'Account created, but sign in failed');
-      }
-
-      return null;
-    },
-    onSuccess: () => {
-      onSuccess?.();
-
-      if (redirectTo) {
-        router.push(redirectTo);
-      }
-
-      router.refresh();
-    },
-  });
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: { preventDefault(): void; currentTarget: HTMLFormElement }) {
     event.preventDefault();
     setFieldErrors({});
     authMutation.reset();
@@ -153,15 +48,13 @@ export function LoginForm({
       await authMutation.mutateAsync(new FormData(event.currentTarget));
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const nextErrors: FieldErrors = {};
-
+        const nextErrors: AuthFieldErrors = {};
         for (const issue of error.issues) {
           const key = issue.path[0];
-          if (typeof key === 'string' && !nextErrors[key as keyof FieldErrors]) {
-            nextErrors[key as keyof FieldErrors] = issue.message;
+          if (typeof key === 'string' && !nextErrors[key as keyof AuthFieldErrors]) {
+            nextErrors[key as keyof AuthFieldErrors] = issue.message;
           }
         }
-
         setFieldErrors(nextErrors);
       }
     }
@@ -280,3 +173,6 @@ export function LoginForm({
     </Card>
   );
 }
+
+// Re-export schemas so they remain accessible to consumers that may need them
+export { loginSchema, registerSchema };

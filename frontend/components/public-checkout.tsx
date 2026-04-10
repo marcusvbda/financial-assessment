@@ -1,8 +1,6 @@
 'use client';
 
-import { type FormEvent, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
@@ -10,33 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { SessionUser } from '@/lib/auth/server';
+import { type CheckoutFieldErrors, checkoutSchema, useCheckoutMutation } from '@/hooks/use-checkout';
 import LockWall from './lock-wall';
-
-const checkoutSchema = z.object({
-  holder: z.string().min(1, 'Cardholder name is required.'),
-  card_number: z.string().regex(/^\d{16}$/, 'Card number must have 16 digits.'),
-  cvv: z.string().regex(/^\d{3}$/, 'CVV must have 3 digits.'),
-  due_date: z
-    .string()
-    .regex(/^(0[1-9]|1[0-2])\/\d{4}$/, 'Expiration date must be in MM/YYYY format.'),
-});
-
-type CheckoutFieldErrors = Partial<Record<'holder' | 'card_number' | 'cvv' | 'due_date', string>>;
 
 interface PublicCheckoutProps {
   productPrice: number;
   user: SessionUser | null;
 }
 
-interface TransactionResponse {
-  id: number;
-}
-
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 }
 
 function formatCardNumber(value: string) {
@@ -50,89 +31,21 @@ function formatCvv(value: string) {
 
 function formatDueDate(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 6);
-
-  if (digits.length <= 2) {
-    return digits;
-  }
-
+  if (digits.length <= 2) return digits;
   return `${digits.slice(0, 2)}/${digits.slice(2)}`;
 }
 
 export function PublicCheckout({ productPrice, user }: PublicCheckoutProps) {
-  const router = useRouter();
   const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({});
   const [cardNumberValue, setCardNumberValue] = useState('');
   const [cvvValue, setCvvValue] = useState('');
   const [dueDateValue, setDueDateValue] = useState('');
 
-  const checkoutMutation = useMutation({
-    mutationFn: async (formData: FormData) => {
-      const parsed = checkoutSchema.safeParse({
-        holder: formData.get('holder'),
-        card_number: String(formData.get('card_number') ?? '').replace(/\s+/g, ''),
-        cvv: formData.get('cvv'),
-        due_date: formData.get('due_date'),
-      });
+  const checkoutMutation = useCheckoutMutation(productPrice);
 
-      if (!parsed.success) {
-        throw parsed.error;
-      }
-
-      const response = await fetch('/api/protected/transactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...parsed.data,
-          amount: productPrice,
-        }),
-      });
-
-      const data = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        errors?: Record<string, string[] | undefined>;
-        id?: number;
-      };
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Please log in before completing the checkout.');
-        }
-
-        if (data.errors) {
-          const nextErrors: CheckoutFieldErrors = {};
-
-          for (const key of Object.keys(data.errors) as Array<keyof CheckoutFieldErrors>) {
-            const message = data.errors[key]?.[0];
-            if (message) {
-              nextErrors[key] = message;
-            }
-          }
-
-          const validationError = new Error('Checkout validation failed.');
-          (validationError as Error & { fieldErrors?: CheckoutFieldErrors }).fieldErrors =
-            nextErrors;
-          throw validationError;
-        }
-
-        throw new Error(data.error ?? 'Unable to process the payment right now.');
-      }
-
-      return data as TransactionResponse;
-    },
-    onSuccess: (transaction) => {
-      router.push(`/checkout/thank-you?transaction_id=${transaction.id}`);
-      router.refresh();
-    },
-  });
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: { preventDefault(): void; currentTarget: HTMLFormElement }) {
     event.preventDefault();
-
-    if (!user) {
-      return;
-    }
+    if (!user) return;
 
     setFieldErrors({});
     checkoutMutation.reset();
@@ -142,14 +55,12 @@ export function PublicCheckout({ productPrice, user }: PublicCheckoutProps) {
     } catch (error) {
       if (error instanceof z.ZodError) {
         const nextErrors: CheckoutFieldErrors = {};
-
         for (const issue of error.issues) {
           const key = issue.path[0];
           if (typeof key === 'string' && !nextErrors[key as keyof CheckoutFieldErrors]) {
             nextErrors[key as keyof CheckoutFieldErrors] = issue.message;
           }
         }
-
         setFieldErrors(nextErrors);
         return;
       }
@@ -267,11 +178,13 @@ export function PublicCheckout({ productPrice, user }: PublicCheckoutProps) {
                     disabled={!user || checkoutMutation.isPending}
                     onChange={(event) => setCvvValue(formatCvv(event.target.value))}
                   />
-                  {fieldErrors.cvv && <p className="text-sm text-destructive">{fieldErrors.cvv}</p>}
+                  {fieldErrors.cvv && (
+                    <p className="text-sm text-destructive">{fieldErrors.cvv}</p>
+                  )}
                 </div>
               </div>
 
-              {checkoutMutation.error && (
+              {checkoutMutation.error && !(checkoutMutation.error instanceof z.ZodError) && (
                 <p className="text-sm text-destructive">{checkoutMutation.error.message}</p>
               )}
 
@@ -292,3 +205,6 @@ export function PublicCheckout({ productPrice, user }: PublicCheckoutProps) {
     </main>
   );
 }
+
+// Re-export schema so consumers can use it if needed
+export { checkoutSchema };

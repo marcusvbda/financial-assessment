@@ -53,5 +53,27 @@
     "id": 5,
     "created_at": "2026-04-10T16:42:45.430Z",
     "updated_at": "2026-04-10T16:42:53.432Z"
+  },
+  {
+    "user_id": 2,
+    "status": "posted",
+    "card_id": "tok_e5e7a095960446689d6c80afb1bf92a0",
+    "last_digits": "4242",
+    "holder": "Client User",
+    "amount": 167,
+    "id": 6,
+    "created_at": "2026-04-10T17:10:38.725Z",
+    "updated_at": "2026-04-10T17:10:43.727Z"
+  },
+  {
+    "user_id": 1,
+    "status": "posted",
+    "card_id": "tok_b9660e72d3e04815882092eac59024ad",
+    "last_digits": "4242",
+    "holder": "Manager User",
+    "amount": 98,
+    "id": 7,
+    "created_at": "2026-04-10T17:18:03.102Z",
+    "updated_at": "2026-04-10T17:18:08.105Z"
   }
 ]

@@ -6,8 +6,8 @@ export async function POST() {
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE)?.value;
 
-  try {
-    if (token) {
+  if (token) {
+    try {
       await fetch(`${process.env.BACKEND_URL!}/api/auth/revoke`, {
         method: 'POST',
         headers: {
@@ -16,10 +16,11 @@ export async function POST() {
         },
         cache: 'no-store',
       });
+    } catch {
+      // best-effort — proceed with local logout even if revoke fails
     }
-  } finally {
-    cookieStore.delete(AUTH_COOKIE);
   }
 
+  cookieStore.delete(AUTH_COOKIE);
   return NextResponse.json({ success: true });
 }

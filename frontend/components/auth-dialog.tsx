@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { LoginForm } from '@/components/login-form';
 import { Button } from '@/components/ui/button';
@@ -48,8 +49,8 @@ export function AuthDialog({
         {openLabel}
       </Button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+      {open && createPortal(
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60">
           <button
             type="button"
             aria-label="Close authentication dialog"
@@ -57,36 +58,39 @@ export function AuthDialog({
             onClick={() => setOpen(false)}
           />
 
-          <div
-            aria-describedby={description ? 'auth-dialog-description' : undefined}
-            aria-labelledby="auth-dialog-title"
-            aria-modal="true"
-            role="dialog"
-            className="relative z-10 w-full max-w-md"
-          >
-            <div className="mb-3 flex items-start justify-between gap-4 text-white">
-              <div>
-                <p id="auth-dialog-title" className="text-lg font-semibold tracking-tight">
-                  {title}
-                </p>
-                {description && (
-                  <p id="auth-dialog-description" className="text-sm text-white/75">
-                    {description}
+          <div className="flex min-h-full items-center justify-center px-4 py-6">
+            <div
+              aria-describedby={description ? 'auth-dialog-description' : undefined}
+              aria-labelledby="auth-dialog-title"
+              aria-modal="true"
+              role="dialog"
+              className="relative z-10 w-full max-w-md"
+            >
+              <div className="mb-3 flex items-start justify-between gap-4 text-white">
+                <div>
+                  <p id="auth-dialog-title" className="text-lg font-semibold tracking-tight">
+                    {title}
                   </p>
-                )}
+                  {description && (
+                    <p id="auth-dialog-description" className="text-sm text-white/75">
+                      {description}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="text-sm text-white/70 transition-colors hover:text-white"
+                  onClick={() => setOpen(false)}
+                >
+                  Close
+                </button>
               </div>
-              <button
-                type="button"
-                className="text-sm text-white/70 transition-colors hover:text-white"
-                onClick={() => setOpen(false)}
-              >
-                Close
-              </button>
-            </div>
 
-            <LoginForm defaultMode={defaultMode} onSuccess={() => setOpen(false)} redirectTo={null} />
+              <LoginForm defaultMode={defaultMode} onSuccess={() => setOpen(false)} redirectTo={null} />
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

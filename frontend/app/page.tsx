@@ -7,6 +7,8 @@ function getRandomProductPrice() {
 
 export default async function Home() {
   const user = await getCurrentUser();
+
+  // to emulate different prices
   const productPrice = getRandomProductPrice();
 
   return <PublicCheckout productPrice={productPrice} user={user} />;

@@ -1,9 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { SessionUser } from '@/lib/auth/server';
+import {
+  type Transaction,
+  type TransactionStatus,
+  useReverseTransactionMutation,
+  useTransactionsQuery,
+} from '@/hooks/use-transactions';
+import { useUsersQuery } from '@/hooks/use-users';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,29 +21,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type TransactionStatus = 'posted' | 'pending' | 'reversed';
-
-interface Transaction {
-  id: number;
-  user_id: number;
-  status: TransactionStatus;
-  card_id: string;
-  last_digits: string;
-  holder: string;
-  amount: number;
-  created_at: string;
-  updated_at: string;
-}
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -63,37 +46,6 @@ function formatAmount(amount: number) {
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(iso));
-}
-
-// ─── API ──────────────────────────────────────────────────────────────────────
-
-async function fetchTransactions({
-  status,
-  userId,
-}: {
-  status?: TransactionStatus;
-  userId?: number;
-}): Promise<Transaction[]> {
-  const params = new URLSearchParams();
-  if (status) params.set('status', status);
-  if (userId) params.set('user_id', String(userId));
-  const qs = params.toString();
-  const res = await fetch(`/api/protected/transactions${qs ? `?${qs}` : ''}`);
-  if (!res.ok) throw new Error('Failed to fetch transactions');
-  return res.json();
-}
-
-async function fetchUsers(): Promise<User[]> {
-  const res = await fetch('/api/protected/users');
-  if (!res.ok) throw new Error('Failed to fetch users');
-  return res.json();
-}
-
-async function reverseTransaction(id: number): Promise<Transaction> {
-  const res = await fetch(`/api/protected/transactions/${id}/reverse`, { method: 'POST' });
-  const data = (await res.json().catch(() => ({}))) as { error?: string } & Partial<Transaction>;
-  if (!res.ok) throw new Error(data.error ?? 'Failed to reverse transaction');
-  return data as Transaction;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -182,7 +134,6 @@ interface Props {
 
 export function TransactionListView({ user }: Props) {
   const isManager = user.role === 'manager';
-  const queryClient = useQueryClient();
 
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | 'all'>('all');
   const [userIdFilter, setUserIdFilter] = useState<number | undefined>(undefined);
@@ -190,29 +141,16 @@ export function TransactionListView({ user }: Props) {
 
   // ── Queries ────────────────────────────────────────────────────────────────
 
-  const transactionsQuery = useQuery({
-    queryKey: ['transactions', { status: statusFilter, userId: userIdFilter }],
-    queryFn: () =>
-      fetchTransactions({
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        userId: userIdFilter,
-      }),
+  const transactionsQuery = useTransactionsQuery({
+    status: statusFilter === 'all' ? undefined : statusFilter,
+    userId: userIdFilter,
   });
 
-  const usersQuery = useQuery({
-    queryKey: ['users'],
-    queryFn: fetchUsers,
-    enabled: isManager,
-  });
+  const usersQuery = useUsersQuery({ enabled: isManager });
 
   // ── Mutation ───────────────────────────────────────────────────────────────
 
-  const reverseMutation = useMutation({
-    mutationFn: reverseTransaction,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-    },
-  });
+  const reverseMutation = useReverseTransactionMutation();
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
@@ -351,7 +289,7 @@ export function TransactionListView({ user }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {paginated.map((t) => (
+                {paginated.map((t: Transaction) => (
                   <tr key={t.id} className="bg-background transition-colors hover:bg-muted/30">
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">#{t.id}</td>
                     <td className="px-4 py-3">
@@ -393,7 +331,7 @@ export function TransactionListView({ user }: Props) {
 
           {/* Mobile cards */}
           <div className="flex flex-col gap-3 md:hidden">
-            {paginated.map((t) => (
+            {paginated.map((t: Transaction) => (
               <div key={t.id} className="rounded-lg border bg-card p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <StatusBadge status={t.status} />

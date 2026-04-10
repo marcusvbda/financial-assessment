@@ -27,15 +27,7 @@ export default async function ThankYouPage({ searchParams }: ThankYouPageProps) 
 
   const response = await protectedBackendRequest(`/api/transactions/${parsedTransactionId}`);
 
-  if (response.status === 401) {
-    notFound();
-  }
-
-  if (response.status === 404) {
-    notFound();
-  }
-
-  if (!response.ok) {
+  if ([401, 404].includes(response.status) || !response.ok) {
     notFound();
   }
 

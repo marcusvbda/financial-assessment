@@ -212,7 +212,6 @@ Forward only `accept` and `content-type` headers from the original request. Buil
 **LoginForm details:**
 Segmented control to switch between `login` and `register` modes. Login: validates email + password with Zod, POSTs to `/api/session/login`, redirects to `/app` on success. Register: validates name + email + password + confirmPassword with Zod (cross-field refine for password match), POSTs to `/api/session/register`, then auto-logins via `/api/session/login`, redirects to `/app`. Show per-field Zod errors inline and global API errors as an alert. Submit button shows loading state.
 
-**next.config.ts:** `output: 'standalone'`
 
 **Result**
 
@@ -222,7 +221,6 @@ Segmented control to switch between `login` and `register` modes. Login: validat
 * Invalid or expired tokens automatically cleared on the next server render
 * Combined login/register form with client-side Zod validation and React Query mutations
 * Catch-all proxy route forwards all authenticated API calls to the backend
-* Standalone output mode ready for containerized deployment
 
 **Notes**
 

@@ -115,37 +115,137 @@ Layers only communicate downward: routes → service → model. Middlewares are 
 
 **Requirements:** Node.js v20+
 
-### Run the backend
+The backend and frontend run as two separate processes. Open two terminal windows and start each one independently.
+
+---
+
+### 1. Backend
+
+#### 1.1 Configure environment
 
 ```bash
 cd backend
 cp .env.example .env
+```
+
+The generated `.env` file contains:
+
+| Variable       | Default                    | Description                                      |
+| -------------- | -------------------------- | ------------------------------------------------ |
+| `PORT`         | `3001`                     | Port the API listens on                          |
+| `NODE_ENV`     | `development`              | Runtime environment                              |
+| `JWT_SECRET`   | `changeme`                 | **Change this** — secret used to sign JWT tokens |
+| `FRONTEND_URL` | `http://localhost:3000`    | Allowed origin for Socket.io CORS                |
+
+> **Important:** replace `JWT_SECRET` with a strong random string before running in any shared environment.
+
+#### 1.2 Install dependencies
+
+```bash
 npm install
+```
+
+#### 1.3 Start development server
+
+```bash
 npm run dev
 ```
 
-Available at <http://localhost:3001>  
-Swagger docs at <http://localhost:3001/api-docs>
+The API is available at <http://localhost:3001>.  
+Interactive API docs (Swagger UI) at <http://localhost:3001/api-docs>.
 
-### Test accounts
+---
 
-| Role    | Email                      | Password |
-| ------- | -------------------------- | -------- |
-| Manager | manager@neofinancial.com   | password |
-| Client  | client@neofinancial.com    | password |
+### 2. Frontend
 
-### Run the frontend
-
-> Copy `.env.local.example` to `.env.local` before running. This file is ignored by git and must not be committed.
+#### 2.1 Configure environment
 
 ```bash
 cd frontend
 cp .env.local.example .env.local
+```
+
+The generated `.env.local` file contains:
+
+| Variable      | Default                 | Description                                                     |
+| ------------- | ----------------------- | --------------------------------------------------------------- |
+| `BACKEND_URL` | `http://localhost:3001` | Server-side URL used by Next.js API routes to reach the backend |
+
+> `.env.local` is git-ignored and must not be committed.
+
+#### 2.2 Install dependencies
+
+```bash
 npm install
+```
+
+#### 2.3 Start development server
+
+```bash
 npm run dev
 ```
 
-Available at <http://localhost:3000>
+The application is available at <http://localhost:3000>.
+
+---
+
+### 3. Test accounts
+
+Use these pre-seeded accounts to log in:
+
+| Role    | Email                    | Password   |
+| ------- | ------------------------ | ---------- |
+| Manager | manager@neofinancial.com | `password` |
+| Client  | client@neofinancial.com  | `password` |
+
+You can also register a new account via the sign-up form — self-registration always assigns the `client` role.
+
+#### Test card
+
+Use the following card details on the checkout form:
+
+| Field           | Value                 |
+| --------------- | --------------------- |
+| Card number     | `4242 4242 4242 4242` |
+| CVV             | any 3 digits          |
+| Expiration date | any future MM/YYYY    |
+| Cardholder name | any name              |
+
+> The expiration date must not be in the past — the backend rejects expired cards.
+
+---
+
+### 4. Running tests
+
+Tests must pass before a production build can be created. Run them independently at any time:
+
+#### Backend (Jest — 56 integration tests)
+
+```bash
+cd backend
+npm test
+```
+
+#### Frontend (Vitest — 35 unit tests)
+
+```bash
+cd frontend
+npm test
+```
+
+Tests cover authentication flows, session cookie handling, auth redirects, the BFF proxy, and server-side auth utilities.
+
+#### Build (runs tests automatically)
+
+Both projects gate the build behind their test suite. A failed test aborts the build:
+
+```bash
+# backend
+cd backend && npm run build   # runs Jest, then tsc
+
+# frontend
+cd frontend && npm run build  # runs Vitest, then next build
+```
 
 ---
 
